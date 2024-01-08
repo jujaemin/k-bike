@@ -4,7 +4,6 @@ on:
   push:
     paths:
       - "Dockerfile"
-      - "dags/**"
       - "docker-compose.yml"
     branches: [ "main" ]
   pull_request:
