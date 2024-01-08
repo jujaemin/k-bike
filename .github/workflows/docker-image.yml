@@ -2,6 +2,10 @@ name: Docker Image CI
 
 on:
   push:
+    paths:
+      - "Dockerfile"
+      - "dags/**"
+      - "docker-compose.yml"
     branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
