@@ -11,5 +11,4 @@ RUN apt-get update \
 
 USER airflow
 COPY ./dags /opt/airflow/dags
-COPY ./plugins /opt/airflow/plugins
 RUN pip install --user --upgrade pip
