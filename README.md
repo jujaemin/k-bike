@@ -7,5 +7,4 @@
 ### image build
 다음 폴더/파일에 push가 생기면 실행됩니다.
 - "Dockerfile"
-- "dags/**"
 - "docker-compose.yml"
