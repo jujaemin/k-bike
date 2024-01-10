@@ -148,7 +148,7 @@ def weather_load_func(created_at,**context):
 
 dag = DAG(
     dag_id = 'Seoul_data',
-    start_date = datetime(2023,4,6),
+    start_date = datetime(2024,1,1),
     schedule = '0 0 * * *',
     max_active_runs = 1,
     catchup = False,
