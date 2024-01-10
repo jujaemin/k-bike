@@ -83,16 +83,19 @@ def weather_transform(**context):
      
     return weather_data
 
-def sbike_load(**context):  
+def sbike_load_func(created_at,**context):  
     schema = context["params"]["schema"]
     table = context["params"]["table"]
-    
+    # convert timezone UTC -> KST
+    tmp_dt = datetime.strptime(created_at.replace("T"," ")[:19], '%Y-%m-%d %H:%M:%S')
+    created_at = tmp_dt + timedelta(hours=9)
+
     records = context["task_instance"].xcom_pull(key="return_value", task_ids="sbike_transform")    
 
     cur = get_Snowflake_connection()
     try:
         cur.execute("BEGIN;")
-        cur.execute(f"DELETE FROM {schema}.SBIKE;") 
+        cur.execute(f"DELETE FROM {schema}.{table};") 
         # DELETE FROM을 먼저 수행 -> FULL REFRESH을 하는 형태
         for r in records:
             place = r[0]
@@ -101,7 +104,7 @@ def sbike_load(**context):
             sbike_parking_cnt = r[3]
             sbike_rack_cnt = r[4] 
             sbike_shared = r[5]
-            sql = f"INSERT INTO {schema}.SBIKE VALUES ('{place}', '{sbike_spot}', '{sbike_spot_id}', '{sbike_parking_cnt}', '{sbike_rack_cnt}', '{sbike_shared}')"
+            sql = f"INSERT INTO {schema}.{table} VALUES ('{place}','{created_at}','{sbike_spot}', '{sbike_spot_id}', '{sbike_parking_cnt}', '{sbike_rack_cnt}', '{sbike_shared}')"
             cur.execute(sql)
         cur.execute("COMMIT;")   # cur.execute("END;") 
     except (Exception, psycopg2.DatabaseError) as error:
@@ -110,9 +113,12 @@ def sbike_load(**context):
         raise
 
 
-def weather_load(**context):
+def weather_load_func(created_at,**context):
     schema = context["params"]["schema"]
     table = context["params"]["table"]
+    # convert timezone UTC -> KST
+    tmp_dt = datetime.strptime(created_at.replace("T"," ")[:19], '%Y-%m-%d %H:%M:%S')
+    created_at = tmp_dt + timedelta(hours=9)
     
     records = context["task_instance"].xcom_pull(key="return_value", task_ids="weather_transform")    
 
@@ -120,7 +126,7 @@ def weather_load(**context):
     cur = get_Snowflake_connection()
     try:
         cur.execute("BEGIN;")
-        cur.execute(f"DELETE FROM {schema}.WEATHER;") 
+        cur.execute(f"DELETE FROM {schema}.{table};") 
         # DELETE FROM을 먼저 수행 -> FULL REFRESH을 하는 형태
         for r in records:
             place = r[0]
@@ -131,7 +137,7 @@ def weather_load(**context):
             uv_index_lvl = r[5]
             pm10 = r[6]
             pm25 = r[7]
-            sql = f"INSERT INTO {schema}.WEATHER VALUES ('{place}', '{temp}', '{sensible_temp}', '{rain_chance}', '{precipitation}', '{uv_index_lvl}', '{pm10}', '{pm25}')"
+            sql = f"INSERT INTO {schema}.{table} VALUES ('{place}','{created_at}', '{temp}', '{sensible_temp}', '{rain_chance}', '{precipitation}', '{uv_index_lvl}', '{pm10}', '{pm25}')"
             cur.execute(sql)
         cur.execute("COMMIT;")   # cur.execute("END;") 
     except (Exception, psycopg2.DatabaseError) as error:
@@ -176,20 +182,22 @@ weather_transform = PythonOperator(
 
 sbike_load = PythonOperator(
     task_id = 'sbike_load',
-    python_callable = sbike_load,
+    python_callable = sbike_load_func,
     params = {
         'schema': 'TEST_SCHEMA',  
-        'table': 'SBIKE'
+        'table': 'SBIKE',
     },
+    op_kwargs = {'created_at': "{{ ts }}",},
     dag = dag)
 
 weather_load = PythonOperator(
     task_id = 'weather_load',
-    python_callable = weather_load,
+    python_callable = weather_load_func,
     params = {
         'schema': 'TEST_SCHEMA',  
-        'table': 'WEATHER'
+        'table': 'WEATHER',
     },
+    op_kwargs = {'created_at': "{{ ts }}",},
     dag = dag)
 
 extract >> sbike_transform >> sbike_load
