@@ -14,7 +14,7 @@ places = ['강남역', '미아사거리역', '건대입구역', '광화문·덕�
 
 
 def get_Snowflake_connection(autocommit=True):
-    hook = snowflake.SnowflakeHook(snowflake_conn_id = 'snowflake_conn')
+    hook = snowflake.SnowflakeHook(snowflake_conn_id = 'snowflake_conn_raw')
     conn = hook.get_conn()
     conn.autocommit = autocommit
     return conn.cursor()
@@ -184,7 +184,7 @@ sbike_load = PythonOperator(
     task_id = 'sbike_load',
     python_callable = sbike_load_func,
     params = {
-        'schema': 'TEST_SCHEMA',  
+        'schema': 'RAW_DATA',  
         'table': 'SBIKE',
     },
     op_kwargs = {'created_at': "{{ ts }}",},
@@ -194,7 +194,7 @@ weather_load = PythonOperator(
     task_id = 'weather_load',
     python_callable = weather_load_func,
     params = {
-        'schema': 'TEST_SCHEMA',  
+        'schema': 'RAW_DATA',  
         'table': 'WEATHER',
     },
     op_kwargs = {'created_at': "{{ ts }}",},
