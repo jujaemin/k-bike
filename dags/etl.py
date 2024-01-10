@@ -10,8 +10,7 @@ from datetime import timedelta
 import json
 
 
-work_places = ['강남역', '미아사거리역', '건대입구역', '광화문·덕수궁', 'DDP(동대문디자인플라자)']
-life_places = ['뚝섬한강공원', '여의도한강공원', '서울숲공원', '난지한강공원', '홍대입구역(2호선)']
+places = ['강남역', '미아사거리역', '건대입구역', '광화문·덕수궁', 'DDP(동대문디자인플라자)', '뚝섬한강공원', '여의도한강공원', '서울숲공원', '난지한강공원', '홍대입구역(2호선)']
 
 
 def get_Snowflake_connection(autocommit=True):
@@ -34,7 +33,7 @@ def sbike_transform(**context):
     sbike_data = {}
     place_list = []
 
-    for place in work_places:
+    for place in places:
         api_url = str(response) + place
         place_list.append(api_url)
 
@@ -64,7 +63,7 @@ def weather_transform(**context):
     weather_data = {}
     place_list = []
 
-    for place in life_places:
+    for place in places:
         api_url = str(response) + place
         place_list.append(api_url)
 
