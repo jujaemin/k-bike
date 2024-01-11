@@ -82,12 +82,12 @@ def weather_transform(**context):
      
     return weather_data
 
-def sbike_load_func(created_at,**context):  
+def sbike_load_func(**context):  
     schema = context["params"]["schema"]
     table = context["params"]["table"]
-    # convert timezone UTC -> KST
-    tmp_dt = datetime.strptime(created_at.replace("T"," ")[:19], '%Y-%m-%d %H:%M:%S')
-    created_at = tmp_dt + timedelta(hours=9)
+        # convert timezone UTC -> KST
+    tmp_dt = datetime.now() + timedelta(hours=9)
+    created_at = tmp_dt.strftime('%Y-%m-%d %H:%M:%S')
 
     records = context["task_instance"].xcom_pull(key="return_value", task_ids="sbike_transform")    
 
@@ -124,12 +124,12 @@ def sbike_load_func(created_at,**context):
         cur.execute("ROLLBACK;")
         raise
 
-def weather_load_func(created_at,**context):
+def weather_load_func(**context):
     schema = context["params"]["schema"]
     table = context["params"]["table"]
     # convert timezone UTC -> KST
-    tmp_dt = datetime.strptime(created_at.replace("T"," ")[:19], '%Y-%m-%d %H:%M:%S')
-    created_at = tmp_dt + timedelta(hours=9)
+    tmp_dt = datetime.now() + timedelta(hours=9)
+    created_at = tmp_dt.strftime('%Y-%m-%d %H:%M:%S')
     
     records = context["task_instance"].xcom_pull(key="return_value", task_ids="weather_transform")    
 
@@ -212,7 +212,6 @@ sbike_load = PythonOperator(
         'schema': 'RAW_DATA',  
         'table': 'SBIKE',
     },
-    op_kwargs = {'created_at': datetime.now(),},
     dag = dag)
 
 weather_load = PythonOperator(
@@ -222,7 +221,6 @@ weather_load = PythonOperator(
         'schema': 'RAW_DATA',  
         'table': 'WEATHER',
     },
-    op_kwargs = {'created_at': datetime.now(),},
     dag = dag)
 
 extract >> sbike_transform >> sbike_load
