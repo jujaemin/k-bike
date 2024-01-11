@@ -1,5 +1,6 @@
 from airflow import DAG
 from airflow.operators.python import PythonOperator
+from airflow.operators.dagrun_operator import TriggerDagRunOperator
 from airflow.models import Variable
 from airflow.providers.snowflake.hooks import snowflake
 
@@ -159,10 +160,11 @@ dag = DAG(
     max_active_runs = 1,
     catchup = False,
     default_args = {
-        'retries': 1,
-        'retry_delay': timedelta(minutes=3),
+        # 'retries': 1,
+        # 'retry_delay': timedelta(minutes=3),
     }
 )
+
 
 extract = PythonOperator(
     task_id = 'extract',
@@ -204,5 +206,11 @@ weather_load = PythonOperator(
     },
     dag = dag)
 
-extract >> sbike_transform >> sbike_load
-extract >> weather_transform >> weather_load
+trigger = TriggerDagRunOperator(
+    task_id='trigger_next_dag',
+    trigger_dag_id="get_latest_data",  # 트리거하려는 다음 DAG의 ID
+    dag=dag,
+)
+
+[extract >> sbike_transform >> sbike_load, extract >> weather_transform >> weather_load] >> trigger
+

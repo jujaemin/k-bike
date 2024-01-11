@@ -20,7 +20,7 @@ with DAG(
 
     refresh_weekly_loc_temp_rain_sharedAvg = SnowflakeOperator(
         task_id="refresh_weekly_loc_temp_rain_sharedAvg",
-        snowflake_conn_id="snowflake.K_BIKE.RAW_DATA_conn",
+        snowflake_conn_id="snowflake_conn_raw",
         # 대여소별 평균 거치율 계산 후
         # 장소 - 기온 - 강수 확률 - 평균 대여율 테이블 생성
         sql="""
