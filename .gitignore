@@ -1,3 +1,4 @@
 /logs/
 .env
 /dags/__pycache__/
+.idea/*
