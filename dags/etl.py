@@ -98,7 +98,6 @@ def sbike_load_func(**context):
 
     try:
         cur.execute("BEGIN;")
-        cur.execute(f"""CREATE TEMP TABLE TEMP_BIKE AS SELECT * FROM {schema}.{table};""")
 
         for r in records:
             place = r[0]
@@ -107,16 +106,8 @@ def sbike_load_func(**context):
             sbike_parking_cnt = r[3]
             sbike_rack_cnt = r[4] 
             sbike_shared = r[5]
-            insert_sql = f"INSERT INTO TEMP_BIKE VALUES ('{place}','{created_at}','{sbike_spot}', '{sbike_spot_id}', '{sbike_parking_cnt}', '{sbike_rack_cnt}', '{sbike_shared}')"
+            insert_sql = f"INSERT INTO {table} VALUES ('{place}','{created_at}','{sbike_spot}', '{sbike_spot_id}', '{sbike_parking_cnt}', '{sbike_rack_cnt}', '{sbike_shared}')"
             cur.execute(insert_sql)
-
-        cur.execute(f"DELETE FROM {schema}.{table};")
-        cur.execute(f"""INSERT INTO {schema}.{table}
-                    SELECT PLACE, CREATED_AT, SBIKE_SPOT, SBIKE_SPOT_ID, SBIKE_PARKING_CNT, SBIKE_RACK_CNT, SBIKE_SHARED FROM (
-                    SELECT *, ROW_NUMBER() OVER (PARTITION BY SBIKE_SPOT_ID ORDER BY CREATED_AT DESC) seq
-                    FROM TEMP_BIKE
-                    )
-                    WHERE seq = 1;""")
         cur.execute("COMMIT;")
         
     except Exception as error:
@@ -141,7 +132,6 @@ def weather_load_func(**context):
 
     try:
         cur.execute("BEGIN;")
-        cur.execute(f"""CREATE TEMP TABLE TEMP_WEATHER AS SELECT * FROM {schema}.{table};""")
 
         for r in records:
             place = r[0]
@@ -152,17 +142,8 @@ def weather_load_func(**context):
             uv_index_lvl = r[5]
             pm10 = r[6]
             pm25 = r[7]
-            insert_sql = f"INSERT INTO TEMP_WEATHER VALUES ('{place}','{created_at}', '{temp}', '{sensible_temp}', '{rain_chance}', '{precipitation}', '{uv_index_lvl}', '{pm10}', '{pm25}')"
+            insert_sql = f"INSERT INTO {table} VALUES ('{place}','{created_at}', '{temp}', '{sensible_temp}', '{rain_chance}', '{precipitation}', '{uv_index_lvl}', '{pm10}', '{pm25}')"
             cur.execute(insert_sql)
-        cur.execute("COMMIT;")
-
-        cur.execute(f"DELETE FROM {schema}.{table};")
-        cur.execute(f"""INSERT INTO {schema}.{table}
-                    SELECT PLACE, CREATED_AT, TEMP, SENSIBLE_TEMP, RAIN_CHANCE, PRECIPITATION, UV_INDEX_LVL, PM10, PM25 FROM (
-                    SELECT *, ROW_NUMBER() OVER (PARTITION BY PLACE ORDER BY CREATED_AT DESC) seq
-                    FROM TEMP_WEATHER
-                    )
-                    WHERE seq = 1;""")
         cur.execute("COMMIT;")
 
     except Exception as error:
