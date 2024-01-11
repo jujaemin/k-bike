@@ -7,7 +7,6 @@ import requests
 from bs4 import BeautifulSoup
 from datetime import datetime
 from datetime import timedelta
-import psycopg2
 
 
 places = ['강남역', '미아사거리역', '건대입구역', '광화문·덕수궁', 'DDP(동대문디자인플라자)', '뚝섬한강공원', '여의도한강공원', '서울숲공원', '난지한강공원', '홍대입구역(2호선)']
@@ -96,11 +95,11 @@ def sbike_load_func(created_at,**context):
 
     if not records:
         raise Exception('records is empty')
-        
+
     try:
         cur.execute("BEGIN;")
-        cur.execute(f"DELETE FROM {schema}.{table};") 
-        # DELETE FROM을 먼저 수행 -> FULL REFRESH을 하는 형태
+        cur.execute(f"""CREATE TEMP TABLE TEMP_BIKE AS SELECT * FROM {schema}.{table};""")
+
         for r in records:
             place = r[0]
             sbike_spot = r[1]
@@ -108,14 +107,22 @@ def sbike_load_func(created_at,**context):
             sbike_parking_cnt = r[3]
             sbike_rack_cnt = r[4] 
             sbike_shared = r[5]
-            sql = f"INSERT INTO {schema}.{table} VALUES ('{place}','{created_at}','{sbike_spot}', '{sbike_spot_id}', '{sbike_parking_cnt}', '{sbike_rack_cnt}', '{sbike_shared}')"
-            cur.execute(sql)
-        cur.execute("COMMIT;")   # cur.execute("END;") 
-    except (Exception, psycopg2.DatabaseError) as error:
+            insert_sql = f"INSERT INTO TEMP_BIKE VALUES ('{place}','{created_at}','{sbike_spot}', '{sbike_spot_id}', '{sbike_parking_cnt}', '{sbike_rack_cnt}', '{sbike_shared}')"
+            cur.execute(insert_sql)
+
+        cur.execute(f"DELETE FROM {schema}.{table};")
+        cur.execute(f"""INSERT INTO {schema}.{table}
+                    SELECT PLACE, CREATED_AT, SBIKE_SPOT, SBIKE_SPOT_ID, SBIKE_PARKING_CNT, SBIKE_RACK_CNT, SBIKE_SHARED FROM (
+                    SELECT *, ROW_NUMBER() OVER (PARTITION BY SBIKE_SPOT_ID ORDER BY CREATED_AT DESC) seq
+                    FROM TEMP_BIKE
+                    )
+                    WHERE seq = 1;""")
+        cur.execute("COMMIT;")
+        
+    except Exception as error:
         print(error)
         cur.execute("ROLLBACK;")
         raise
-
 
 def weather_load_func(created_at,**context):
     schema = context["params"]["schema"]
@@ -131,11 +138,11 @@ def weather_load_func(created_at,**context):
 
     if not records:
         raise Exception('records is empty')
-        
+
     try:
         cur.execute("BEGIN;")
-        cur.execute(f"DELETE FROM {schema}.{table};") 
-        # DELETE FROM을 먼저 수행 -> FULL REFRESH을 하는 형태
+        cur.execute(f"""CREATE TEMP TABLE TEMP_WEATHER AS SELECT * FROM {schema}.{table};""")
+
         for r in records:
             place = r[0]
             temp = r[1]
@@ -145,10 +152,20 @@ def weather_load_func(created_at,**context):
             uv_index_lvl = r[5]
             pm10 = r[6]
             pm25 = r[7]
-            sql = f"INSERT INTO {schema}.{table} VALUES ('{place}','{created_at}', '{temp}', '{sensible_temp}', '{rain_chance}', '{precipitation}', '{uv_index_lvl}', '{pm10}', '{pm25}')"
-            cur.execute(sql)
-        cur.execute("COMMIT;")   # cur.execute("END;") 
-    except (Exception, psycopg2.DatabaseError) as error:
+            insert_sql = f"INSERT INTO TEMP_WEATHER VALUES ('{place}','{created_at}', '{temp}', '{sensible_temp}', '{rain_chance}', '{precipitation}', '{uv_index_lvl}', '{pm10}', '{pm25}')"
+            cur.execute(insert_sql)
+        cur.execute("COMMIT;")
+
+        cur.execute(f"DELETE FROM {schema}.{table};")
+        cur.execute(f"""INSERT INTO {schema}.{table}
+                    SELECT PLACE, CREATED_AT, TEMP, SEBSUBKE_TEMP, RAIN_CHANCE, PRECIPITATION, UV_INDEX_LVL, PM10, PM25 FROM (
+                    SELECT *, ROW_NUMBER() OVER (PARTITION BY PLACE ORDER BY CREATED_AT DESC) seq
+                    FROM TEMP_WEATHER
+                    )
+                    WHERE seq = 1;""")
+        cur.execute("COMMIT;")
+
+    except Exception as error:
         print(error)
         cur.execute("ROLLBACK;")
         raise
@@ -157,7 +174,7 @@ def weather_load_func(created_at,**context):
 dag = DAG(
     dag_id = 'Seoul_data',
     start_date = datetime(2024,1,1),
-    schedule = '0 * * * *',
+    schedule = timedelta(minutes = 30),
     max_active_runs = 1,
     catchup = False,
     default_args = {
@@ -195,7 +212,7 @@ sbike_load = PythonOperator(
         'schema': 'RAW_DATA',  
         'table': 'SBIKE',
     },
-    op_kwargs = {'created_at': "{{ ts }}",},
+    op_kwargs = {'created_at': datetime.now(),},
     dag = dag)
 
 weather_load = PythonOperator(
@@ -205,7 +222,7 @@ weather_load = PythonOperator(
         'schema': 'RAW_DATA',  
         'table': 'WEATHER',
     },
-    op_kwargs = {'created_at': "{{ ts }}",},
+    op_kwargs = {'created_at': datetime.now(),},
     dag = dag)
 
 extract >> sbike_transform >> sbike_load
