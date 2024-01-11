@@ -160,8 +160,8 @@ dag = DAG(
     max_active_runs = 1,
     catchup = False,
     default_args = {
-        # 'retries': 1,
-        # 'retry_delay': timedelta(minutes=3),
+        'retries': 1,
+        'retry_delay': timedelta(minutes=3),
     }
 )
 
