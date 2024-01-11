@@ -158,7 +158,7 @@ def weather_load_func(created_at,**context):
 
         cur.execute(f"DELETE FROM {schema}.{table};")
         cur.execute(f"""INSERT INTO {schema}.{table}
-                    SELECT PLACE, CREATED_AT, TEMP, SEBSUBKE_TEMP, RAIN_CHANCE, PRECIPITATION, UV_INDEX_LVL, PM10, PM25 FROM (
+                    SELECT PLACE, CREATED_AT, TEMP, SENSIBLE_TEMP, RAIN_CHANCE, PRECIPITATION, UV_INDEX_LVL, PM10, PM25 FROM (
                     SELECT *, ROW_NUMBER() OVER (PARTITION BY PLACE ORDER BY CREATED_AT DESC) seq
                     FROM TEMP_WEATHER
                     )
