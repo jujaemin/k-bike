@@ -93,6 +93,10 @@ def sbike_load_func(created_at,**context):
     records = context["task_instance"].xcom_pull(key="return_value", task_ids="sbike_transform")    
 
     cur = get_Snowflake_connection()
+
+    if not records:
+        raise Exception('records is empty')
+        
     try:
         cur.execute("BEGIN;")
         cur.execute(f"DELETE FROM {schema}.{table};") 
@@ -124,6 +128,10 @@ def weather_load_func(created_at,**context):
 
     # BEGIN과 END를 사용해서 SQL 결과를 트랜잭션으로 만들어주는 것이 좋음
     cur = get_Snowflake_connection()
+
+    if not records:
+        raise Exception('records is empty')
+        
     try:
         cur.execute("BEGIN;")
         cur.execute(f"DELETE FROM {schema}.{table};") 
