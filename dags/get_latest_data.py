@@ -15,12 +15,12 @@ with DAG(
     start_date=airflow.utils.dates.days_ago(1),
     catchup=False,
     default_args=default_args,
-    schedule_interval="35 * * * *",
+    schedule_interval=None,
 ) as dag:
 
     get_latest_weather_info = SnowflakeOperator(
         task_id="get_latest_weather_info",
-        snowflake_conn_id="snowflake.K_BIKE.RAW_DATA_conn",
+        snowflake_conn_id="snowflake_conn_raw",
         sql="""
                 BEGIN;
                  
@@ -43,7 +43,7 @@ with DAG(
 
     get_latest_sbike_info = SnowflakeOperator(
         task_id="get_latest_sbike_info",
-        snowflake_conn_id="snowflake.K_BIKE.RAW_DATA_conn",
+        snowflake_conn_id="snowflake_conn_raw",
         sql="""
                 BEGIN;
                 
@@ -66,7 +66,7 @@ with DAG(
 
     get_latest_temp_rain_shared = SnowflakeOperator(
         task_id="get_latest_temp_rain_shared",
-        snowflake_conn_id="snowflake.K_BIKE.RAW_DATA_conn",
+        snowflake_conn_id="snowflake_conn_raw",
         sql="""
                     BEGIN;
 
