@@ -7,7 +7,6 @@ import requests
 from bs4 import BeautifulSoup
 from datetime import datetime
 from datetime import timedelta
-import psycopg2
 
 
 places = ['강남역', '미아사거리역', '건대입구역', '광화문·덕수궁', 'DDP(동대문디자인플라자)', '뚝섬한강공원', '여의도한강공원', '서울숲공원', '난지한강공원', '홍대입구역(2호선)']
@@ -83,12 +82,12 @@ def weather_transform(**context):
      
     return weather_data
 
-def sbike_load_func(created_at,**context):  
+def sbike_load_func(**context):  
     schema = context["params"]["schema"]
     table = context["params"]["table"]
-    # convert timezone UTC -> KST
-    tmp_dt = datetime.strptime(created_at.replace("T"," ")[:19], '%Y-%m-%d %H:%M:%S')
-    created_at = tmp_dt + timedelta(hours=9)
+        # convert timezone UTC -> KST
+    tmp_dt = datetime.now() + timedelta(hours=9)
+    created_at = tmp_dt.strftime('%Y-%m-%d %H:%M:%S')
 
     records = context["task_instance"].xcom_pull(key="return_value", task_ids="sbike_transform")    
 
@@ -96,11 +95,10 @@ def sbike_load_func(created_at,**context):
 
     if not records:
         raise Exception('records is empty')
-        
+
     try:
         cur.execute("BEGIN;")
-        cur.execute(f"DELETE FROM {schema}.{table};") 
-        # DELETE FROM을 먼저 수행 -> FULL REFRESH을 하는 형태
+
         for r in records:
             place = r[0]
             sbike_spot = r[1]
@@ -108,21 +106,21 @@ def sbike_load_func(created_at,**context):
             sbike_parking_cnt = r[3]
             sbike_rack_cnt = r[4] 
             sbike_shared = r[5]
-            sql = f"INSERT INTO {schema}.{table} VALUES ('{place}','{created_at}','{sbike_spot}', '{sbike_spot_id}', '{sbike_parking_cnt}', '{sbike_rack_cnt}', '{sbike_shared}')"
-            cur.execute(sql)
-        cur.execute("COMMIT;")   # cur.execute("END;") 
-    except (Exception, psycopg2.DatabaseError) as error:
+            insert_sql = f"INSERT INTO {table} VALUES ('{place}','{created_at}','{sbike_spot}', '{sbike_spot_id}', '{sbike_parking_cnt}', '{sbike_rack_cnt}', '{sbike_shared}')"
+            cur.execute(insert_sql)
+        cur.execute("COMMIT;")
+        
+    except Exception as error:
         print(error)
         cur.execute("ROLLBACK;")
         raise
 
-
-def weather_load_func(created_at,**context):
+def weather_load_func(**context):
     schema = context["params"]["schema"]
     table = context["params"]["table"]
     # convert timezone UTC -> KST
-    tmp_dt = datetime.strptime(created_at.replace("T"," ")[:19], '%Y-%m-%d %H:%M:%S')
-    created_at = tmp_dt + timedelta(hours=9)
+    tmp_dt = datetime.now() + timedelta(hours=9)
+    created_at = tmp_dt.strftime('%Y-%m-%d %H:%M:%S')
     
     records = context["task_instance"].xcom_pull(key="return_value", task_ids="weather_transform")    
 
@@ -131,11 +129,10 @@ def weather_load_func(created_at,**context):
 
     if not records:
         raise Exception('records is empty')
-        
+
     try:
         cur.execute("BEGIN;")
-        cur.execute(f"DELETE FROM {schema}.{table};") 
-        # DELETE FROM을 먼저 수행 -> FULL REFRESH을 하는 형태
+
         for r in records:
             place = r[0]
             temp = r[1]
@@ -145,10 +142,11 @@ def weather_load_func(created_at,**context):
             uv_index_lvl = r[5]
             pm10 = r[6]
             pm25 = r[7]
-            sql = f"INSERT INTO {schema}.{table} VALUES ('{place}','{created_at}', '{temp}', '{sensible_temp}', '{rain_chance}', '{precipitation}', '{uv_index_lvl}', '{pm10}', '{pm25}')"
-            cur.execute(sql)
-        cur.execute("COMMIT;")   # cur.execute("END;") 
-    except (Exception, psycopg2.DatabaseError) as error:
+            insert_sql = f"INSERT INTO {table} VALUES ('{place}','{created_at}', '{temp}', '{sensible_temp}', '{rain_chance}', '{precipitation}', '{uv_index_lvl}', '{pm10}', '{pm25}')"
+            cur.execute(insert_sql)
+        cur.execute("COMMIT;")
+
+    except Exception as error:
         print(error)
         cur.execute("ROLLBACK;")
         raise
@@ -157,7 +155,7 @@ def weather_load_func(created_at,**context):
 dag = DAG(
     dag_id = 'Seoul_data',
     start_date = datetime(2024,1,1),
-    schedule = '0 * * * *',
+    schedule = timedelta(minutes = 30),
     max_active_runs = 1,
     catchup = False,
     default_args = {
@@ -195,7 +193,6 @@ sbike_load = PythonOperator(
         'schema': 'RAW_DATA',  
         'table': 'SBIKE',
     },
-    op_kwargs = {'created_at': "{{ ts }}",},
     dag = dag)
 
 weather_load = PythonOperator(
@@ -205,7 +202,6 @@ weather_load = PythonOperator(
         'schema': 'RAW_DATA',  
         'table': 'WEATHER',
     },
-    op_kwargs = {'created_at': "{{ ts }}",},
     dag = dag)
 
 extract >> sbike_transform >> sbike_load
