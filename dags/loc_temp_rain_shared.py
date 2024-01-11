@@ -44,6 +44,7 @@ with DAG(
                 
                 COMMIT;
                 """,
+        # 트랜잭션 실패시 자동으로 ROLLBACK후, DAG 실패처리 (SnowflakeOperator 기본 설정)
         autocommit=True
     )
 
