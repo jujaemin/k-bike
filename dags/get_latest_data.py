@@ -70,16 +70,17 @@ with DAG(
         sql="""
                     BEGIN;
 
-                    DROP TABLE IF EXISTS ANALYTICS.latest_temp_rain_shared; 
+                    DROP TABLE IF EXISTS ANALYTICS.latest_temp_rain_shared;
                     CREATE OR REPLACE TABLE ANALYTICS.latest_temp_rain_shared AS (
-                    SELECT W.PLACE, W.TEMP, W.RAIN_CHANCE, S.SBIKE_SHARED, W.CREATED_AT
+                    SELECT W.PLACE, W.TEMP, W.RAIN_CHANCE, AVG(S.SBIKE_SHARED) AS AVG_SBIKE_SHARED, MAX(W.CREATED_AT) AS MAX_CREATED_AT
                     FROM WEATHER W
                     JOIN SBIKE S on W.PLACE = S.PLACE
                     WHERE (W.PLACE, W.CREATED_AT) IN (
                         SELECT W2.PLACE, MAX(W2.CREATED_AT)
-                        FROM WEATHER W2    
+                        FROM WEATHER W2
                         GROUP BY W2.PLACE
                         )
+                    GROUP BY W.PLACE, W.TEMP, W.RAIN_CHANCE
                     ORDER BY W.PLACE
                     );
 
