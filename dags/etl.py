@@ -21,8 +21,6 @@ def get_Snowflake_connection(autocommit=True):
 
 def extract(**context):
     link = context["params"]["url"]
-    task_instance = context["task_instance"]
-    execution_date = context["execution_date"]
 
     return (link)
 
